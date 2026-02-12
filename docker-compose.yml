@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: idea-archive-db
+    environment:
+      POSTGRES_DB: idea_archive
+      POSTGRES_USER: ideauser
+      POSTGRES_PASSWORD: changeme123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - idea-network
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: idea-archive-api
+    environment:
+      DATABASE_URL: postgresql://ideauser:changeme123@postgres:5432/idea_archive
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - idea-network
+    restart: unless-stopped
+    volumes:
+      - ./public:/app/public
+
+volumes:
+  postgres_data:
+
+networks:
+  idea-network:
+    driver: bridge

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Idea Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background: linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #581c87 50%,
+          #0f172a 100%
+        );
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="min-h-screen p-8">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-8">
+          <h1 class="text-4xl font-bold text-white mb-2">💡 Idea Archive</h1>
+          <p class="text-purple-200">Your vibe coding concept library</p>
+        </div>
+
+        <!-- Search -->
+        <div class="mb-6">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search ideas..."
+            class="w-full px-4 py-3 bg-white/20 text-white placeholder-purple-200 rounded-xl border border-purple-300/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 outline-none"
+          />
+        </div>
+
+        <!-- Ideas List -->
+        <div id="ideasList" class="space-y-4">
+          <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Detail Modal -->
+        <div
+          id="detailModal"
+          class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-8 z-50"
+        >
+          <div
+            class="bg-gradient-to-br from-slate-900 to-purple-900 rounded-2xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+          >
+            <div class="flex justify-between items-start mb-6">
+              <h2 id="detailConcept" class="text-2xl font-bold text-white"></h2>
+              <button
+                onclick="closeDetail()"
+                class="text-purple-300 hover:text-white"
+              >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+            <div id="detailContent" class="space-y-6">
+              <!-- Will be populated by JavaScript -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let allIdeas = [];
+
+      async function loadIdeas() {
+        try {
+          const response = await fetch("/api/ideas");
+          const data = await response.json();
+          allIdeas = data.ideas;
+          renderIdeas(allIdeas);
+        } catch (error) {
+          console.error("Error loading ideas:", error);
+        }
+      }
+
+      function renderIdeas(ideas) {
+        const container = document.getElementById("ideasList");
+
+        if (ideas.length === 0) {
+          container.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-purple-200/70">No ideas yet. Use the artifact to create your first one!</p>
+                    </div>
+                `;
+          return;
+        }
+
+        container.innerHTML = ideas
+          .map(
+            (idea) => `
+                <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 shadow-lg hover:bg-white/15 transition-all cursor-pointer"
+                     onclick="showDetail('${idea.id}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold text-white">${escapeHtml(idea.concept)}</h3>
+                        <span class="text-purple-300/60 text-sm">${new Date(idea.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <p class="text-purple-100/70 text-sm">${escapeHtml(idea.preview || "")}...</p>
+                </div>
+            `,
+          )
+          .join("");
+      }
+
+      async function showDetail(id) {
+        try {
+          const response = await fetch(`/api/ideas/${id}`);
+          const data = await response.json();
+          const idea = data.idea;
+
+          document.getElementById("detailConcept").textContent = idea.concept;
+
+          const sections = [
+            { title: "💡 Concept Explanation", key: "explanation" },
+            { title: "🎯 MVP Functionality", key: "mvp" },
+            { title: "⚡ Core Features", key: "core_features" },
+            { title: "✨ Creative Features", key: "creative_features" },
+            { title: "🗺️ Roadmap", key: "roadmap" },
+            { title: "🚀 Enhancements", key: "enhancements" },
+            { title: "⚠️ Issues & Blockers", key: "issues" },
+            { title: "🏷️ Name Ideas", key: "names" },
+            { title: "🔗 Related Projects", key: "related" },
+            { title: "🤖 Claude Code Prompt", key: "claude_code_prompt" },
+            { title: "📋 Roadmap Prompts", key: "roadmap_prompts" },
+          ];
+
+          const content = sections
+            .map((section) => {
+              const value = idea[section.key];
+              if (!value) return "";
+              return `
+                        <div class="bg-black/20 rounded-lg p-4">
+                            <h3 class="text-lg font-bold text-purple-300 mb-2">${section.title}</h3>
+                            <pre class="text-purple-100 whitespace-pre-wrap font-mono text-sm">${escapeHtml(value)}</pre>
+                        </div>
+                    `;
+            })
+            .join("");
+
+          document.getElementById("detailContent").innerHTML = content;
+          document.getElementById("detailModal").classList.remove("hidden");
+        } catch (error) {
+          console.error("Error loading idea detail:", error);
+        }
+      }
+
+      function closeDetail() {
+        document.getElementById("detailModal").classList.add("hidden");
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Search functionality
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase();
+        if (query === "") {
+          renderIdeas(allIdeas);
+        } else {
+          const filtered = allIdeas.filter(
+            (idea) =>
+              idea.concept.toLowerCase().includes(query) ||
+              (idea.preview && idea.preview.toLowerCase().includes(query)),
+          );
+          renderIdeas(filtered);
+        }
+      });
+
+      // Load ideas on page load
+      loadIdeas();
+    </script>
+  </body>
+</html>
