@@ -1,6 +1,5 @@
 {
   "name": "idea-archive-api",
-  "version": "1.0.3",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -2,8 +2,8 @@
 """Semantic version and build metadata helper for CI workflows.
 
 Conventions:
-- Primary version source: package.json `version` when present and valid.
-- Fallback version source: root `VERSION` file.
+- Primary version source: root `VERSION` file.
+- Fallback version source: package.json `version` when present and valid.
 - Required version format: MAJOR.MINOR.PATCH
 """
 
@@ -44,6 +44,16 @@ def require_semver(value: str) -> str:
 
 
 def detect_version_source(repo_root: Path) -> VersionSource:
+    version_path = repo_root / "VERSION"
+    if version_path.exists():
+        version_value = version_path.read_text(encoding="utf-8").strip()
+        if version_value:
+            return VersionSource(
+                source="VERSION",
+                path=version_path,
+                version=require_semver(version_value),
+            )
+
     package_path = repo_root / "package.json"
     if package_path.exists():
         try:
@@ -59,17 +69,8 @@ def detect_version_source(repo_root: Path) -> VersionSource:
                 version=require_semver(package_version),
             )
 
-    version_path = repo_root / "VERSION"
-    if version_path.exists():
-        version_value = version_path.read_text(encoding="utf-8").strip()
-        return VersionSource(
-            source="VERSION",
-            path=version_path,
-            version=require_semver(version_value),
-        )
-
     raise VersionError(
-        "No canonical version source found. Add package.json version or VERSION file."
+        "No canonical version source found. Add a VERSION file or package.json version."
     )
 
 
